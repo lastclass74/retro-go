@@ -228,7 +228,8 @@ static void netplay_task()
     {
         memset(&packet, 0, sizeof(netplay_packet_t));
 
-        if (!(rx_sock || client_sock) || netplay_status < NETPLAY_STATUS_HANDSHAKE)
+        // Only use the task for handshakes (sync sync test)
+        if (!(rx_sock || client_sock) || netplay_status != NETPLAY_STATUS_HANDSHAKE)
         {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
@@ -548,24 +549,22 @@ void odroid_netplay_sync(void *data_in, void *data_out, uint8_t data_len)
     if (netplay_mode == NETPLAY_MODE_HOST)
     {
         send_packet(remote_player->id, NETPLAY_PACKET_SYNC_REQ, 0, data_in, data_len);
+        do {
+            recv(rx_sock, &packet, sizeof packet, 0); // ACK
+        } while (packet.cmd != NETPLAY_PACKET_SYNC_ACK);
+        // send_packet(remote_player->id, NETPLAY_PACKET_SYNC_DONE, packet.arg, 0, 0);
     }
-
-    // wait to receive/send NETPLAY_PACKET_SYNC_DONE
-    if (xSemaphoreTake(netplay_sync, 10000 / portTICK_PERIOD_MS) != pdPASS)
+    else
     {
-        printf("netplay: [Error] Lost sync...\n");
-        odroid_netplay_stop();
-        return;
+        do {
+            recv(rx_sock, &packet, sizeof packet, 0); // REQ
+        } while (packet.cmd != NETPLAY_PACKET_SYNC_REQ);
+        send_packet(remote_player->id, NETPLAY_PACKET_SYNC_ACK, 0, data_in, data_len);
+        // recv(rx_sock, &packet, sizeof packet, 0); // DONE
     }
 
+    memcpy(&remote_player->sync_data, packet.data, packet.data_len);
     memcpy(data_out, remote_player->sync_data, data_len);
-
-    if (netplay_mode == NETPLAY_MODE_GUEST)
-    {
-        odroid_netplay_send_packet(remote_player->id, NETPLAY_PACKET_SYNC_ACK, 0,
-                    local_player->sync_data, sizeof(local_player->sync_data));
-        xSemaphoreTake(netplay_sync, 1000 / portTICK_PERIOD_MS);
-    }
 
     sync_time += get_elapsed_time_since(start_time);
 

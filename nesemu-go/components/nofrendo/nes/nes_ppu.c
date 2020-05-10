@@ -141,9 +141,12 @@ ppu_t *ppu_create(void)
 {
    ppu_t *temp;
 
-   temp = calloc(sizeof(ppu_t), 1);
-   if (NULL == temp)
-      return NULL;
+   temp = &ppu;
+   // temp = malloc(sizeof(ppu_t));
+   // if (NULL == temp)
+   //    return NULL;
+
+   memset(temp, 0, sizeof(ppu_t));
 
    temp->latchfunc = NULL;
    temp->vram_present = false;
@@ -159,7 +162,8 @@ void ppu_destroy(ppu_t **src_ppu)
 {
    if (*src_ppu)
    {
-      free(*src_ppu);
+      if (*src_ppu != &ppu)
+         free(*src_ppu);
       *src_ppu = NULL;
    }
 }

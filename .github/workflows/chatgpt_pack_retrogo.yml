@@ -1,0 +1,36 @@
+name: ChatGPT Pack Retro-Go 1.46 Cores
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/chatgpt_pack_retrogo.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout upstream Retro-Go 1.46
+        uses: actions/checkout@v4
+        with:
+          repository: ducalex/retro-go
+          ref: '1.46'
+          path: retro-go
+      - name: Pack fMSX and PrBoom
+        shell: bash
+        run: |
+          mkdir -p bundle
+          cp -a retro-go/fmsx bundle/fmsx
+          cp -a retro-go/prboom-go bundle/prboom-go
+          find bundle -type f | sort > bundle/SOURCE_FILES.txt
+      - name: Upload source bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: retrogo-1.46-cores
+          path: bundle
+          retention-days: 1
+          if-no-files-found: error
